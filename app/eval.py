@@ -8,7 +8,8 @@ Offline metrics (computed against the labelled key facts in data/eval/qa_zh.json
   * MRR                - reciprocal rank of the first context containing a key fact
   * Context Precision  - RAGAS-style rank-weighted precision, with relevance = "contains a key fact"
   * Answer Hit         - the final answer contains every key fact
-  * No-Answer Acc.     - on unanswerable questions, the system declines instead of answering
+  * No-Answer Acc.     - on unanswerable questions, the system declines (fallback node, or an
+                         answer stating the sources don't cover it) instead of answering
   * Latency            - mean wall-clock seconds per question (end to end)
 """
 
@@ -16,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import statistics
 import time
 from pathlib import Path
@@ -41,11 +43,20 @@ def load_dataset(path: Path = DATASET) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
+_DECLINE = re.compile(r"(资料|知识库)[^。\n]{0,8}(未|没有)(提及|包含|涉及|检索到|相关)")
+
+
+def is_decline(answer: str) -> bool:
+    """The fallback node's refusal, or a generator answer that says the sources don't cover it."""
+    return bool(_DECLINE.search(answer))
+
+
 def run_pipeline(mode: str, question: str) -> tuple[list[Document], str, bool]:
     """Returns (contexts given to the generator, answer, declined?)."""
     if mode == "agentic":
         state = app_graph.invoke(initial_state(question))
-        return state.get("relevant", []), state.get("generation", ""), state.get("mode") == "fallback"
+        answer = state.get("generation", "")
+        return state.get("relevant", []), answer, state.get("mode") == "fallback" or is_decline(answer)
 
     retriever = get_hybrid_retriever()
     if mode == "naive":
@@ -55,7 +66,7 @@ def run_pipeline(mode: str, question: str) -> tuple[list[Document], str, bool]:
     else:
         docs = retriever.search(question, mode="hybrid", rerank=True).documents
     out = generate_node({"question": question, "relevant": docs, "generations": 0})
-    return docs, out["generation"], False
+    return docs, out["generation"], is_decline(out["generation"])
 
 
 def _is_rel(doc: Document, facts: list[str]) -> bool:
@@ -114,10 +125,10 @@ def evaluate_mode(mode: str, data: list[dict]) -> tuple[dict, list[dict]]:
     return summary, records
 
 
-def run_ragas(records_by_mode: dict[str, list[dict]]) -> dict[str, dict]:
+def run_ragas(records_by_mode: dict[str, list[dict]], workers: int = 4) -> dict[str, dict]:
     """LLM-judged metrics with RAGAS, using the same OpenAI-compatible endpoint."""
     from langchain_openai import ChatOpenAI
-    from ragas import EvaluationDataset, evaluate
+    from ragas import EvaluationDataset, RunConfig, evaluate
     from ragas.llms import LangchainLLMWrapper
     from ragas.metrics import Faithfulness, LLMContextPrecisionWithReference, LLMContextRecall
 
@@ -133,6 +144,7 @@ def run_ragas(records_by_mode: dict[str, list[dict]]) -> dict[str, dict]:
             dataset=EvaluationDataset.from_list(records),
             metrics=[LLMContextPrecisionWithReference(), Faithfulness(), LLMContextRecall()],
             llm=judge,
+            run_config=RunConfig(max_workers=workers, timeout=180, max_retries=6),
             show_progress=False,
         )
         df = result.to_pandas()
@@ -188,6 +200,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--modes", nargs="+", default=list(MODES), choices=list(MODES))
     parser.add_argument("--ragas", action="store_true", help="also run RAGAS (requires an LLM key)")
+    parser.add_argument("--ragas-workers", type=int, default=4, help="RAGAS concurrency (lower for free-tier rate limits)")
     args = parser.parse_args()
 
     s = get_settings()
@@ -203,7 +216,7 @@ def main() -> None:
         records[mode] = recs
         print(f"{mode:14s} {json.dumps({k: round(v, 3) if isinstance(v, float) else v for k, v in summary.items()}, ensure_ascii=False)}")
 
-    ragas = run_ragas(records) if args.ragas else None
+    ragas = run_ragas(records, args.ragas_workers) if args.ragas else None
     meta = {
         "date": time.strftime("%Y-%m-%d"),
         "embedding": s.embedding_model if s.embedding_backend != "hash" else "hash",
@@ -212,12 +225,13 @@ def main() -> None:
         "n": len(data),
     }
     RESULTS.mkdir(exist_ok=True)
-    (RESULTS / "benchmark.json").write_text(
+    name = "benchmark_llm" if s.llm_enabled else "benchmark_offline"
+    (RESULTS / f"{name}.json").write_text(
         json.dumps({"meta": meta, "summary": summaries, "ragas": ragas}, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
     md = to_markdown(summaries, ragas, meta)
-    (RESULTS / "benchmark.md").write_text(md, encoding="utf-8")
+    (RESULTS / f"{name}.md").write_text(md, encoding="utf-8")
     print("\n" + md)
 
 

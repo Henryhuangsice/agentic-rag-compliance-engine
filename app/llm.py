@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 from functools import lru_cache
@@ -35,7 +36,15 @@ class LLMClient:
         m = _JSON.search(text)
         if not m:
             raise ValueError(f"LLM did not return JSON: {text[:200]}")
-        return json.loads(m.group(0))
+        raw = m.group(0)
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            # Small models sometimes emit Python literals ({'a': True}) instead of JSON.
+            value = ast.literal_eval(raw)
+            if not isinstance(value, dict):
+                raise
+            return value
 
 
 @lru_cache

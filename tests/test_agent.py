@@ -58,12 +58,25 @@ def test_llm_mode_uses_llm_for_every_step(monkeypatch):
     assert fake.calls == ["json", "chat", "json"]
 
 
-def test_llm_hallucination_triggers_one_regeneration(monkeypatch):
+def test_failed_check_retries_with_feedback_then_falls_back_to_sources(monkeypatch):
     fake = FakeLLM(grounded=False)
+    prompts = []
+    original_chat = fake.chat
+
+    def chat(system, user):
+        prompts.append(user)
+        return original_chat(system, user)
+
+    fake.chat = chat
     monkeypatch.setattr(agent, "get_llm", lambda: fake)
     state = app_graph.invoke(initial_state("自然人客户现金交易达到多少需要报告大额交易？"))
     assert _nodes(state).count("generate") == 2
-    assert state["grounded"] is False
+    # the retry sees the previous answer and the checker's reason
+    assert "核查发现的问题：ok" in prompts[1] and "上一版答案" in prompts[1]
+    # an answer that failed twice is never delivered; verbatim sources are used instead
+    assert state["mode"] == "extractive_fallback"
+    assert state["generation"].startswith("⚠️")
+    assert state["grounded"] is True
 
 
 def test_llm_errors_fall_back_to_offline(monkeypatch):
@@ -78,3 +91,12 @@ def test_llm_errors_fall_back_to_offline(monkeypatch):
     state = app_graph.invoke(initial_state("高风险客户多久需要重新评估一次风险等级？"))
     assert state["mode"] == "offline"
     assert state["generation"]
+
+
+def test_normalize_citations():
+    from app.agent import normalize_citations
+
+    assert normalize_citations("超过 30 万元 [编号：1]") == "超过 30 万元 [1]"
+    assert normalize_citations("见【2】与［3］") == "见[2]与[3]"
+    assert normalize_citations("两处 [1, 2] 和 [来源:4]") == "两处 [1][2] 和 [4]"
+    assert normalize_citations("不是引用 [abc]") == "不是引用 [abc]"

@@ -41,6 +41,9 @@ NODE_LABELS = {
 }
 
 
+MAX_GENERATIONS = 2  # first attempt + one feedback-driven retry
+
+
 class GraphState(TypedDict, total=False):
     question: str
     query: str
@@ -51,6 +54,7 @@ class GraphState(TypedDict, total=False):
     generations: int
     grounded: bool
     groundedness: float
+    feedback: str
     mode: str
     trace: Annotated[list[dict[str, Any]], operator.add]
 
@@ -213,6 +217,16 @@ def _extractive_answer(question: str, docs: list[Document]) -> str:
     return "根据知识库原文（离线抽取模式，未配置 LLM）：\n" + "\n".join(lines)
 
 
+_CITE_VARIANTS = re.compile(r"[\[【［]\s*(?:编号|来源|资料|出处|ref)?\s*[:：]?\s*(\d+(?:\s*[,，、]\s*\d+)*)\s*[\]】］]", re.I)
+
+
+def normalize_citations(text: str) -> str:
+    """Models write citations as [编号：1], 【1】, [1, 2]...; normalize to [1][2]."""
+    return _CITE_VARIANTS.sub(
+        lambda m: "".join(f"[{n}]" for n in re.split(r"\s*[,，、]\s*", m.group(1))), text
+    )
+
+
 @traced("generate")
 def generate_node(state: GraphState) -> dict:
     docs = state["relevant"]
@@ -223,13 +237,18 @@ def generate_node(state: GraphState) -> dict:
     if llm:
         system = (
             "你是企业合规与财报分析助手。只能依据给定的编号资料回答，"
-            "每个事实性陈述后用 [编号] 标注出处；资料不足时明确说明“资料未提及”。"
-            "回答使用简体中文，先给结论，再列要点。"
+            "每个事实性陈述的句末用方括号数字标注出处，例如：“交易金额 30 万元以上须提交董事会审议 [1]。”；"
+            "资料不足时明确说明“资料未提及”。回答使用简体中文，先给结论，再列要点。"
         )
+        user = f"资料：\n{_format_context(docs)}\n\n问题：{question}"
         if strict:
-            system += "上一版答案包含资料中没有的内容，这一次请逐句对照资料，不要做任何推断。"
+            system += "上一版答案没有通过事实核查。请逐句对照资料重写，不要做任何推断，结论句必须与要点一致。"
+            user += (
+                f"\n\n上一版答案：\n{state.get('generation', '')}"
+                f"\n\n核查发现的问题：{state.get('feedback') or '存在资料不支持的陈述'}"
+            )
         try:
-            answer = llm.chat(system, f"资料：\n{_format_context(docs)}\n\n问题：{question}")
+            answer = normalize_citations(llm.chat(system, user))
         except Exception as e:
             log.warning("LLM generation failed, using extractive answer: %s", e)
     mode = "llm" if answer else "offline"
@@ -269,28 +288,51 @@ def grade_generation_node(state: GraphState) -> dict:
     ratio = _support_ratio(answer, docs)
     grounded = ratio >= 0.6
     how = f"字符级支撑率 {ratio:.2f}"
+    feedback = ""
     llm = get_llm()
     if llm and state.get("mode") == "llm":
         try:
             out = llm.chat_json(
-                "你是事实核查员。判断答案中的每一个事实是否都能在资料中找到依据。"
-                '输出格式：{"grounded": true 或 false, "score": 0到1之间的支撑比例, "reason": "简短理由"}',
-                f"资料：\n{_format_context(docs)}\n\n答案：\n{answer}",
+                "你是严格的事实核查员。逐条检查答案中的每一个陈述（包括开头的结论句）：\n"
+                "1. 陈述中的数字、期限、金额、主体是否与资料原文完全一致，且适用于问题所问的对象；\n"
+                "2. 答案内部是否前后矛盾（例如结论与要点给出不同的数字）。\n"
+                "只要有一个陈述不被资料支持，或答案前后矛盾，grounded 就必须为 false。\n"
+                '输出格式：{"claims": [{"text": "陈述", "supported": true或false}], '
+                '"grounded": true或false, "score": 被支持陈述的比例(0到1), "reason": "简短理由"}',
+                f"问题：{state['question']}\n\n资料：\n{_format_context(docs)}\n\n答案：\n{answer}",
             )
             grounded = bool(out.get("grounded"))
             ratio = float(out.get("score", ratio))
+            if ratio > 1:  # some models answer in percent
+                ratio /= 100
+            ratio = min(max(ratio, 0.0), 1.0)
             how = f"LLM 核查 score={ratio:.2f}：{out.get('reason', '')}"
+            feedback = str(out.get("reason", ""))
         except Exception as e:
             log.warning("LLM hallucination check failed: %s", e)
-    return {
+    result = {
         "grounded": grounded,
         "groundedness": round(ratio, 3),
+        "feedback": feedback,
         "_detail": f"{'通过' if grounded else '未通过'}（{how}）",
     }
+    if not grounded and state.get("generations", 0) >= MAX_GENERATIONS:
+        # Never deliver an answer that failed verification twice: fall back to
+        # verbatim source sentences, which are grounded by construction.
+        extract = _extractive_answer(state["question"], docs)
+        result.update(
+            generation="⚠️ 模型生成的答案两次未通过事实核查，以下改为直接摘录资料原文：\n"
+            + extract.split("\n", 1)[-1],
+            grounded=True,
+            groundedness=round(_support_ratio(extract, docs), 3),
+            mode="extractive_fallback",
+        )
+        result["_detail"] += "；已改用原文摘录作答"
+    return result
 
 
 def decide_after_check(state: GraphState) -> str:
-    if state.get("grounded") or state.get("generations", 0) >= 2:
+    if state.get("grounded") or state.get("generations", 0) >= MAX_GENERATIONS:
         return "end"
     return "regenerate"
 

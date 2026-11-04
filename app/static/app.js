@@ -175,6 +175,7 @@ function renderResult(r) {
   if (r.mode === "llm") m.push(`<span class="pill ok">LLM 生成</span>`);
   if (r.mode === "offline") m.push(`<span class="pill warn">抽取式</span>`);
   if (r.mode === "fallback") m.push(`<span class="pill warn">已拒答</span>`);
+  if (r.mode === "extractive_fallback") m.push(`<span class="pill warn" title="LLM 答案两次未通过事实核查，已改为原文摘录">核查未通过 · 原文摘录</span>`);
   if (r.groundedness !== null && r.groundedness !== undefined) {
     const cls = r.grounded ? "ok" : "bad";
     m.push(`<span class="pill ${cls}" title="答案句子被来源支撑的比例">Groundedness ${r.groundedness.toFixed(2)}</span>`);

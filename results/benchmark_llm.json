@@ -1,0 +1,78 @@
+{
+  "meta": {
+    "date": "2026-11-04",
+    "embedding": "BAAI/bge-small-zh-v1.5",
+    "reranker": "BAAI/bge-reranker-base",
+    "generator": "LLM `glm-4-flash`",
+    "n": 26
+  },
+  "summary": [
+    {
+      "mode": "naive",
+      "hit_at_k": 0.95,
+      "mrr": 0.9,
+      "context_precision": 0.9,
+      "answer_hit": 0.85,
+      "no_answer_acc": 1,
+      "latency_s": 3.901357488688798,
+      "n_answerable": 20,
+      "n_unanswerable": 6
+    },
+    {
+      "mode": "hybrid",
+      "hit_at_k": 1,
+      "mrr": 0.9666666666666667,
+      "context_precision": 0.9666666666666667,
+      "answer_hit": 0.95,
+      "no_answer_acc": 1,
+      "latency_s": 3.513167767570569,
+      "n_answerable": 20,
+      "n_unanswerable": 6
+    },
+    {
+      "mode": "hybrid_rerank",
+      "hit_at_k": 1,
+      "mrr": 0.975,
+      "context_precision": 0.975,
+      "answer_hit": 0.9,
+      "no_answer_acc": 1,
+      "latency_s": 4.947479212943178,
+      "n_answerable": 20,
+      "n_unanswerable": 6
+    },
+    {
+      "mode": "agentic",
+      "hit_at_k": 1,
+      "mrr": 1.0,
+      "context_precision": 1.0,
+      "answer_hit": 0.95,
+      "no_answer_acc": 1,
+      "latency_s": 10.738562857445617,
+      "n_answerable": 20,
+      "n_unanswerable": 6
+    }
+  ],
+  "ragas": {
+    "naive": {
+      "llm_context_precision_with_reference": 0.6773504273139601,
+      "faithfulness": 0.9782051282051282,
+      "context_recall": 0.7307692307692307
+    },
+    "hybrid": {
+      "llm_context_precision_with_reference": 0.7094017093634258,
+      "faithfulness": 0.9511904761904761,
+      "context_recall": 0.7692307692307693
+    },
+    "hybrid_rerank": {
+      "llm_context_precision_with_reference": 0.7425213674857193,
+      "faithfulness": 0.9846153846153847,
+      "context_recall": 0.7692307692307693
+    },
+    "agentic": {
+      "llm_context_precision_with_reference": 0.7692307691557693,
+      "faithfulness": 0.8326923076923076,
+      "context_recall": 0.9102564102564101
+    }
+  },
+  "note": "Baseline rows from the full run; agentic row re-measured after the feedback-driven retry change (baselines never reach that code path)."
+}

@@ -1,0 +1,22 @@
+# --- API ---
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.33
+pydantic==2.14.2
+pydantic-settings==2.16.2
+
+# --- Agent ---
+langgraph==1.2.19
+langchain-core==1.7.4
+openai==3.3.0
+
+# --- Retrieval ---
+faiss-cpu==1.15.1
+rank-bm25==0.2.2
+jieba==0.42.1
+fastembed==0.9.1
+numpy==2.4.6
+pypdf==6.21.4
+
+# --- MCP server ---
+mcp==2.3.0

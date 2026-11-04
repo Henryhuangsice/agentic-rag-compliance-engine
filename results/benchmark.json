@@ -1,0 +1,56 @@
+{
+  "meta": {
+    "date": "2026-11-04",
+    "embedding": "BAAI/bge-small-zh-v1.5",
+    "reranker": "BAAI/bge-reranker-base",
+    "generator": "offline extractive (no LLM)",
+    "n": 26
+  },
+  "summary": [
+    {
+      "mode": "naive",
+      "hit_at_k": 0.95,
+      "mrr": 0.9,
+      "context_precision": 0.9,
+      "answer_hit": 0.85,
+      "no_answer_acc": 0,
+      "latency_s": 0.11581730290960807,
+      "n_answerable": 20,
+      "n_unanswerable": 6
+    },
+    {
+      "mode": "hybrid",
+      "hit_at_k": 1,
+      "mrr": 0.9666666666666667,
+      "context_precision": 0.9666666666666667,
+      "answer_hit": 0.9,
+      "no_answer_acc": 0,
+      "latency_s": 0.12066415371373296,
+      "n_answerable": 20,
+      "n_unanswerable": 6
+    },
+    {
+      "mode": "hybrid_rerank",
+      "hit_at_k": 1,
+      "mrr": 0.975,
+      "context_precision": 0.975,
+      "answer_hit": 0.9,
+      "no_answer_acc": 0,
+      "latency_s": 0.4834281698299142,
+      "n_answerable": 20,
+      "n_unanswerable": 6
+    },
+    {
+      "mode": "agentic",
+      "hit_at_k": 1,
+      "mrr": 0.975,
+      "context_precision": 0.975,
+      "answer_hit": 0.9,
+      "no_answer_acc": 0.6666666666666666,
+      "latency_s": 0.4903006842539001,
+      "n_answerable": 20,
+      "n_unanswerable": 6
+    }
+  ],
+  "ragas": null
+}

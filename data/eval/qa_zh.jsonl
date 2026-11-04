@@ -1,0 +1,26 @@
+{"id": "q01", "question": "自然人客户现金交易达到多少需要报告大额交易？", "reference": "自然人客户单笔或当日累计人民币现金交易 5 万元以上（含 5 万元）、外币现金交易等值 1 万美元以上的，应当报告大额交易。", "key_facts": ["5 万元以上"], "source": "01_aml_kyc_policy.md"}
+{"id": "q02", "question": "高风险客户多久需要重新评估一次风险等级？", "reference": "高风险客户每半年至少复评一次。", "key_facts": ["每半年至少复评一次"], "source": "01_aml_kyc_policy.md"}
+{"id": "q03", "question": "受益所有人的持股比例认定标准是什么？", "reference": "直接或间接拥有超过 25% 股权或表决权的自然人。", "key_facts": ["超过 25% 股权"], "source": "01_aml_kyc_policy.md"}
+{"id": "q04", "question": "客户的身份资料和交易记录要保存几年？", "reference": "客户身份资料自业务关系结束后、交易记录自交易结束后，均至少保存 10 年。", "key_facts": ["至少保存 10 年"], "source": "01_aml_kyc_policy.md"}
+{"id": "q05", "question": "如果客户是外国政要，公司需要采取什么措施？", "reference": "应采取强化尽职调查（EDD）措施，并须经首席合规官书面审批后方可建立或维持业务关系。", "key_facts": ["强化尽职调查", "首席合规官书面审批"], "source": "01_aml_kyc_policy.md"}
+{"id": "q06", "question": "发生个人信息泄露后，多长时间内必须向监管部门报告？", "reference": "发现部门 1 小时内报告信息安全部；确认为 I 级或 II 级事件的，应在 24 小时内向监管部门报告。", "key_facts": ["24 小时内向监管部门报告"], "source": "02_data_privacy_policy.md"}
+{"id": "q07", "question": "身份证号码属于哪一级数据？需要怎样保护？", "reference": "身份证件号码属于 L4 核心数据，须实施字段级加密，密钥轮换周期不超过 12 个月。", "key_facts": ["L4 核心数据", "字段级加密"], "source": "02_data_privacy_policy.md"}
+{"id": "q08", "question": "用户要求删除自己的个人信息，公司要在多少天内答复？", "reference": "应当在收到请求之日起 15 个工作日内予以处理并答复。", "key_facts": ["15 个工作日内"], "source": "02_data_privacy_policy.md"}
+{"id": "q09", "question": "把客户交易流水传到境外服务器需要谁批准？", "reference": "交易流水属于 L3 敏感数据，未经数据安全委员会审批不得向境外提供 L3 及以上级别数据。", "key_facts": ["数据安全委员会审批"], "source": "02_data_privacy_policy.md"}
+{"id": "q10", "question": "和关联自然人的交易超过多少钱要上董事会？", "reference": "交易金额在 30 万元以上的，应当经独立董事专门会议审议后提交董事会审议并及时披露。", "key_facts": ["30 万元以上"], "source": "03_related_party_transactions.md"}
+{"id": "q11", "question": "什么情况下关联交易需要提交股东大会审议？", "reference": "交易金额在 3000 万元以上且占最近一期经审计净资产绝对值 5% 以上的；为关联人提供担保的不论数额均须提交股东大会；非关联董事不足三人的也须提交股东大会。", "key_facts": ["3000 万元以上", "提交股东大会审议"], "source": "03_related_party_transactions.md"}
+{"id": "q12", "question": "董事会审议关联交易时，关联董事能不能投票？", "reference": "关联董事应当回避表决，也不得代理其他董事行使表决权。", "key_facts": ["关联董事应当回避表决"], "source": "03_related_party_transactions.md"}
+{"id": "q13", "question": "2025 年公司营业收入是多少，同比增长多少？", "reference": "2025 年营业收入 48.6 亿元，同比增长 18.0%。", "key_facts": ["48.6 亿元"], "source": "04_annual_report_2025_summary.md"}
+{"id": "q14", "question": "哪个业务板块收入占比最高？毛利率是多少？", "reference": "智能风控 SaaS 业务收入 21.3 亿元，占营业收入的 43.8%，毛利率 68.2%。", "key_facts": ["43.8%"], "source": "04_annual_report_2025_summary.md"}
+{"id": "q15", "question": "公司今年分红方案是怎样的？", "reference": "每 10 股派发现金红利 2.40 元（含税），合计 1.93 亿元，占归母净利润的 30.4%，不送红股、不转增。", "key_facts": ["每 10 股派发现金红利 2.40 元"], "source": "04_annual_report_2025_summary.md"}
+{"id": "q16", "question": "应收账款方面存在什么风险？", "reference": "期末应收账款 11.6 亿元，同比增长 31.8%，增速高于营业收入增速，一年以上账龄占比 14.2%。", "key_facts": ["11.6 亿元"], "source": "04_annual_report_2025_summary.md"}
+{"id": "q17", "question": "向云计算子公司采购的关联交易金额是否超出预计？", "reference": "与衡远云计算有限公司的日常关联交易 1.86 亿元，未超出年初预计额度 2.20 亿元，已履行董事会审议程序。", "key_facts": ["1.86 亿元"], "source": "04_annual_report_2025_summary.md"}
+{"id": "q18", "question": "送给客户的礼物最多能值多少钱？", "reference": "单件价值不得超过 500 元，同一对象每年累计不得超过 2,000 元，超标须事先审批。", "key_facts": ["不得超过人民币 500 元"], "source": "05_anti_bribery_expense_policy.md"}
+{"id": "q19", "question": "去上海出差住酒店一晚的报销上限是多少？", "reference": "上海属于一线城市，每晚不超过 800 元；副总裁及以上按 1.5 倍执行。", "key_facts": ["每晚不超过 800 元"], "source": "05_anti_bribery_expense_policy.md"}
+{"id": "q20", "question": "一笔 2 万元的报销需要谁审批？", "reference": "5,000 元至 50,000 元由分管副总裁审批。", "key_facts": ["分管副总裁审批"], "source": "05_anti_bribery_expense_policy.md"}
+{"id": "q21", "question": "公司的员工年假有多少天？", "reference": "", "key_facts": [], "source": null, "answerable": false}
+{"id": "q22", "question": "公司股票代码是多少？", "reference": "", "key_facts": [], "source": null, "answerable": false}
+{"id": "q23", "question": "公司对员工的加班费是怎么计算的？", "reference": "", "key_facts": [], "source": null, "answerable": false}
+{"id": "q24", "question": "2024 年第三季度的营业收入是多少？", "reference": "", "key_facts": [], "source": null, "answerable": false}
+{"id": "q25", "question": "公司的办公地址在哪里？", "reference": "", "key_facts": [], "source": null, "answerable": false}
+{"id": "q26", "question": "员工离职需要提前多少天提出申请？", "reference": "", "key_facts": [], "source": null, "answerable": false}

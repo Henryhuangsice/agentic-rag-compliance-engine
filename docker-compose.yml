@@ -1,0 +1,30 @@
+services:
+  api:
+    build:
+      context: .
+      args:
+        HF_ENDPOINT: ${HF_ENDPOINT:-https://huggingface.co}
+        MODEL_SOURCE: ${MODEL_SOURCE:-huggingface}
+    image: agentic-rag-compliance-engine:latest
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data/docs:/app/data/docs   # uploaded documents persist on the host
+    restart: unless-stopped
+
+  # Optional local LLM:  docker compose --profile ollama up -d
+  # then: docker compose exec ollama ollama pull qwen2.5:7b
+  # and set LLM_BASE_URL=http://ollama:11434/v1, LLM_MODEL=qwen2.5:7b, LLM_API_KEY=ollama in .env
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+
+volumes:
+  ollama:

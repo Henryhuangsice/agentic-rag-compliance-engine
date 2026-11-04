@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Compliance RAG Agent</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%232f5bea'/><path d='M9 17l5 5 9-11' stroke='white' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8"/><path d="M9 17l5 5 9-11"/></svg>
+      </span>
+      <div>
+        <h1>Agentic RAG 合规分析引擎</h1>
+        <p class="sub">LangGraph Self-RAG · FAISS + BM25 混合检索 · BGE Reranker</p>
+      </div>
+    </div>
+    <div class="status" id="status">
+      <span class="pill muted">连接中…</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="col-main">
+      <form id="ask-form" class="card ask">
+        <label for="question" class="label">向知识库提问</label>
+        <div class="ask-row">
+          <textarea id="question" rows="2" maxlength="1000"
+            placeholder="例如：和关联自然人的交易超过多少钱要上董事会？"></textarea>
+          <button type="submit" id="ask-btn" class="btn primary">
+            <span class="btn-text">分析</span>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="examples" id="examples"></div>
+      </form>
+
+      <article class="card answer" id="answer-card" hidden>
+        <div class="answer-head">
+          <h2>回答</h2>
+          <div class="metrics" id="metrics"></div>
+        </div>
+        <div class="answer-body" id="answer"></div>
+        <div class="rewrite" id="rewrite" hidden></div>
+      </article>
+
+      <section class="card" id="sources-card" hidden>
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-tab="cited" role="tab">引用来源 <span id="cited-count" class="count"></span></button>
+          <button class="tab" data-tab="candidates" role="tab">候选召回与打分 <span id="cand-count" class="count"></span></button>
+        </div>
+        <div id="cited" class="tab-panel"></div>
+        <div id="candidates" class="tab-panel" hidden></div>
+      </section>
+
+      <section class="card empty" id="empty-state">
+        <h2>它是怎么工作的</h2>
+        <ol>
+          <li><b>混合检索</b>：FAISS 向量检索与 BM25 关键词检索并行，用 RRF 融合排序，再由 BGE Cross-Encoder 重排。</li>
+          <li><b>相关性评估</b>：Agent 判断召回片段是否真的能回答问题；不相关则<b>改写查询</b>重新检索。</li>
+          <li><b>生成与自检</b>：基于片段生成带引用的答案，再做幻觉检测；仍无依据时拒答而不是编造。</li>
+        </ol>
+        <p class="hint">右侧的状态图会实时高亮 Agent 走过的每一个节点。</p>
+      </section>
+    </section>
+
+    <aside class="col-side">
+      <section class="card">
+        <h2>Agent 状态图</h2>
+        <svg id="graph" viewBox="0 0 380 400" role="img" aria-label="LangGraph Self-RAG 状态图">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" class="arrowhead" />
+            </marker>
+          </defs>
+          <g class="edges">
+            <path data-edge="START>retrieve" d="M160,28 L160,47" />
+            <path data-edge="retrieve>grade_documents" d="M160,82 L160,117" />
+            <path data-edge="grade_documents>transform_query" d="M225,135 C300,135 318,122 318,105" />
+            <path data-edge="transform_query>retrieve" d="M262,80 C248,80 244,66 226,66" />
+            <path data-edge="grade_documents>generate" d="M130,152 L96,195" />
+            <path data-edge="grade_documents>fallback" d="M195,152 L268,195" />
+            <path data-edge="generate>grade_generation" d="M85,230 L85,265" />
+            <path data-edge="grade_generation>END" d="M150,283 C185,295 175,330 168,349" />
+            <path data-edge="fallback>END" d="M275,230 C275,300 245,358 208,361" />
+            <path data-edge="grade_generation>generate" d="M20,283 C3,268 3,228 24,213" />
+          </g>
+          <g class="edge-labels">
+            <text x="252" y="152">不相关·可改写</text>
+            <text x="88" y="178">相关</text>
+            <text x="250" y="176">无可用文档</text>
+            <text x="4" y="252" class="vert">重试</text>
+            <text x="180" y="318">通过</text>
+          </g>
+          <g class="nodes">
+            <g class="terminal"><rect x="125" y="6" width="70" height="22" rx="11"/><text x="160" y="21">START</text></g>
+            <g class="node" data-node="retrieve"><rect x="95" y="48" width="130" height="34" rx="9"/><text x="160" y="69">retrieve</text></g>
+            <g class="node" data-node="transform_query"><rect x="262" y="70" width="112" height="34" rx="9"/><text x="318" y="91">transform_query</text></g>
+            <g class="node" data-node="grade_documents"><rect x="95" y="118" width="130" height="34" rx="9"/><text x="160" y="139">grade_documents</text></g>
+            <g class="node" data-node="generate"><rect x="25" y="196" width="120" height="34" rx="9"/><text x="85" y="217">generate</text></g>
+            <g class="node" data-node="fallback"><rect x="215" y="196" width="120" height="34" rx="9"/><text x="275" y="217">fallback</text></g>
+            <g class="node" data-node="grade_generation"><rect x="20" y="266" width="130" height="34" rx="9"/><text x="85" y="287">grade_generation</text></g>
+            <g class="terminal"><rect x="137" y="350" width="70" height="22" rx="11"/><text x="172" y="365">END</text></g>
+          </g>
+        </svg>
+      </section>
+
+      <section class="card">
+        <h2>执行轨迹</h2>
+        <ol class="timeline" id="timeline">
+          <li class="placeholder">提问后，这里会逐步显示每个节点的执行结果与耗时。</li>
+        </ol>
+      </section>
+
+      <section class="card">
+        <div class="kb-head">
+          <h2>知识库</h2>
+          <label class="btn small" for="upload">上传文档</label>
+          <input type="file" id="upload" accept=".md,.txt,.pdf" hidden />
+        </div>
+        <ul class="kb" id="kb"></ul>
+        <p class="hint" id="upload-msg">支持 .md / .txt / .pdf，上传后自动重建索引。</p>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="foot">
+    示例文档均为虚构公司「衡远金融科技」的演示材料 · <a href="/docs" target="_blank" rel="noopener">API 文档</a>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

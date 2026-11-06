@@ -11,6 +11,7 @@
 ![LangGraph](https://img.shields.io/badge/LangGraph-1.2-1c3c3c)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688)
 ![License](https://img.shields.io/badge/license-MIT-green)
+[![Report](https://img.shields.io/badge/docs-技术报告-orange)](docs/TECHNICAL_REPORT.md)
 
 ![screenshot](docs/screenshot.png)
 

@@ -19,12 +19,6 @@ def test_health(client):
     assert body["chunks"] > 10
 
 
-def test_index_page_served(client):
-    r = client.get("/")
-    assert r.status_code == 200
-    assert "Agentic RAG" in r.text
-
-
 def test_query(client):
     r = client.post("/api/v1/query", json={"question": "和关联自然人的交易超过多少钱要上董事会？"})
     assert r.status_code == 200

@@ -1,7 +1,7 @@
 # 技术报告：Agentic RAG Compliance Engine
 
 > 仓库：<https://github.com/Henryhuangsice/agentic-rag-compliance-engine>
-> 报告日期：2026-11-04 ｜ 代码规模：Python 后端约 1,160 行，前端约 670 行，测试约 230 行（共 20 个用例）
+> 报告日期：2026-11-04（2026-11-23 更新前端与网关章节；本行代码统计为更新前）｜ 代码规模：Python 后端约 1,160 行，前端约 670 行，测试约 230 行（共 20 个用例）
 
 ---
 
@@ -21,7 +21,7 @@
 
 ```mermaid
 flowchart LR
-    U[浏览器前端 / REST 客户端 / MCP 客户端] -->|HTTP + SSE| API[FastAPI 异步服务]
+    U[React 控制台] -->|HTTP + SSE| GW[Node.js 网关] --> API[FastAPI 异步服务]
     API --> G[LangGraph Self-RAG Agent]
     G --> R[HybridRetriever]
     R --> V[FAISS 向量检索<br/>bge-small-zh-v1.5]
@@ -35,7 +35,7 @@ flowchart LR
 
 一次请求的数据流：
 
-1. 前端通过 `POST /api/v1/query/stream` 提交问题，后端以 SSE 推送事件。
+1. 前端通过网关的 `POST /api/v1/query/stream` 提交问题，后端以 SSE 推送事件。
 2. LangGraph 依次执行各节点，每个节点结束就向前端推一条 `step` 事件。前端据此高亮状态图中的节点和边，并在时间线上追加耗时与判断依据。
 3. 图执行结束后推送 `result` 事件，内容包括答案、引用来源、全部候选片段及其四种打分、执行轨迹、groundedness 和总耗时。
 
@@ -54,7 +54,8 @@ flowchart LR
 | LLM 接入 | openai SDK（OpenAI 兼容协议） | 3.3.0 | 一套代码适配 DeepSeek、智谱 GLM、通义 Qwen、Ollama、vLLM |
 | Web 服务 | FastAPI + Uvicorn | 0.162 / 0.54 | 原生 async、自动生成 Swagger、Pydantic 校验 |
 | 配置 | pydantic-settings | 2.16.2 | 环境变量 / `.env` 统一管理，带类型校验 |
-| 前端 | 原生 HTML / CSS / JS + 内联 SVG | — | 无构建步骤，由 FastAPI 直接托管；Docker 镜像不需要 Node |
+| 前端 | React + TypeScript + Vite | 19 / 7 / 8 | 查询状态机可穷举检查，组件可测试 |
+| 网关 | Node.js + Fastify + zod | ≥22 / 5 / 4 | 鉴权、限流、SSE 转发与取消传播 |
 | 工具协议 | MCP Python SDK（`MCPServer`） | 2.3.0 | 把检索和问答暴露给 Claude Desktop、Cursor 等 MCP 客户端 |
 | 评测 | 自研离线指标 + RAGAS | ragas 0.4.3 | 离线指标零成本、可复现；RAGAS 提供 LLM 评审的 Faithfulness 等指标 |
 | 可观测性 | LangSmith（可选） | — | 设置 `LANGSMITH_*` 环境变量即可，LangGraph 自动上报 Trace |
@@ -133,10 +134,11 @@ flowchart TD
 - 文档上传接口用 `Path(name).name` 防止路径穿越，限制文件类型和 10 MB 大小，在线程池中重建索引。
 - `GET /api/v1/graph` 导出 LangGraph 自动生成的 Mermaid 图。
 
-### 4.6 前端（`app/static/`）
+### 4.6 前端（`web/`）与网关（`gateway/`）
 
 - **状态图**：手绘 SVG，每个节点和每条边都带 `data-node` / `data-edge` 属性。收到 `step` 事件时，把“上一节点 → 当前节点”这条边高亮，当前节点设为 active。查询改写的回环、拒答路径都能直观看到。
-- **SSE 解析**：浏览器自带的 `EventSource` 只支持 GET，所以改用 `fetch` 加 `ReadableStream` 手动按 `\n\n` 切分事件，以便 POST JSON。
+- **SSE 解析**：浏览器自带的 `EventSource` 只支持 GET，所以改用 `fetch` 加 `ReadableStream` 和增量解析器（`shared/src/sse.ts`），处理跨网络块的帧与多字节字符，以便 POST JSON；事件经 zod 校验后才进入状态机。
+- **网关**：SSE 按背压转发，只在帧边界插入心跳；上游中途失败时追加一条 `error` 事件；浏览器断开时取消上游请求。
 - **引用**：渲染答案时把 `[n]` 转成可点击的角标，点击后切换到“引用来源”页，滚动到对应片段并闪烁高亮。
 - **其他**：支持亮色和暗色主题；`?q=问题` 链接可直接复现一次查询；上传文档后自动刷新知识库列表；离线模式和 LLM 模式在顶部状态栏有明显区分。
 

@@ -1,4 +1,4 @@
-"""FastAPI service: REST + Server-Sent-Events API and the web UI."""
+"""FastAPI service: REST + Server-Sent-Events API. The web UI is served by the Node gateway."""
 
 from __future__ import annotations
 
@@ -11,8 +11,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.agent import app_graph, initial_state, serialize_sources
@@ -21,7 +20,6 @@ from app.loader import SUPPORTED_SUFFIXES
 from app.retriever import get_hybrid_retriever, reindex
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-STATIC_DIR = Path(__file__).parent / "static"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 
@@ -156,11 +154,3 @@ async def upload_document(file: UploadFile = File(...)) -> dict:
 @app.get("/api/v1/graph")
 async def graph_mermaid() -> dict:
     return {"mermaid": app_graph.get_graph().draw_mermaid()}
-
-
-@app.get("/", include_in_schema=False)
-async def index() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
-
-
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

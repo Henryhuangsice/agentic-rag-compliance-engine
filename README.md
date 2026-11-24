@@ -31,7 +31,8 @@
 
 ```mermaid
 flowchart LR
-    U[Web UI / REST / MCP 客户端] -->|SSE 流式| API[FastAPI 异步服务]
+    U[React 控制台<br/>TypeScript] -->|SSE 流式| GW[Node.js 网关<br/>Fastify + TypeScript]
+    GW -->|鉴权 · 限流 · 取消传播| API[FastAPI 异步服务]
     API --> G[LangGraph Self-RAG Agent]
     G --> R[Hybrid Retriever]
     R --> V[FAISS 向量检索<br/>bge-small-zh-v1.5]
@@ -76,6 +77,9 @@ flowchart TD
 - **结构感知切块**：按 Markdown 标题切章节，章节内按中文句末标点打包，并在每个 chunk 前缀「文档标题 / 章节」，显著提升短条款的召回。
 - **Self-RAG 闭环**：相关性评估 → 查询改写 → 拒答兜底 → 幻觉检测 → 带反馈的重生成，全部是 LangGraph 条件边。幻觉检测会逐条核对陈述并检查答案是否自相矛盾，未通过时把核查理由反馈给模型重写；重写后仍不通过，则改为直接摘录原文，绝不交付未通过核查的答案。
 - **可视化前端**：实时高亮 Agent 走过的节点与边；时间线显示每个节点的耗时与判断依据；引用角标可点击跳转原文；“候选召回”页展示每个片段的向量排名、BM25 排名、RRF 分数、Rerank 分数以及是否被过滤。支持上传 PDF / Markdown / TXT 并自动重建索引。
+- **React + TypeScript 控制台**：查询流程用可辨识联合 + reducer 建模（idle / streaming / done / cancelled / failed）；支持中途停止并保留已完成轨迹、失败重试、断流识别；回答解析成结构化数据再渲染，不使用 `dangerouslySetInnerHTML`。
+- **Node.js 网关**：Bearer Key 鉴权、按调用方令牌桶限流、带背压的 SSE 转发、空闲超时与心跳；浏览器断开时取消上游请求；上传流式透传，不在网关缓冲整个文件。
+- **单一契约**：`shared/` 用 zod 定义接口，前端与网关共用，类型由 schema 推导，前端对收到的每个事件做运行时校验。
 - **流式 API**：`POST /api/v1/query/stream` 以 SSE 逐节点推送执行过程。
 - **MCP Server**：把检索和 Agent 暴露为 MCP 工具，可直接接入 Claude Desktop / Cursor 等客户端。
 - **可观测性**：设置 `LANGSMITH_*` 环境变量即可在 LangSmith 中查看每次调用的完整 Trace。
@@ -167,7 +171,7 @@ cp .env.example .env          # 可选：填入 LLM_API_KEY（智谱 glm-4-flash
 docker compose up -d --build
 ```
 
-打开 <http://localhost:8000> 使用前端，<http://localhost:8000/docs> 查看 Swagger API 文档。
+打开 <http://localhost:8000> 使用控制台（由 Node 网关提供，FastAPI 不对外暴露）。在 `.env` 中设置 `GATEWAY_API_KEYS` 可开启鉴权。
 
 > 构建镜像时会预下载 Embedding 与 Reranker 模型（约 1.2 GB，最终镜像约 3 GB），之后容器启动不需要联网下载模型。如果所在网络访问 huggingface.co 较慢，可以在 `.env` 中设置 `HF_ENDPOINT=https://hf-mirror.com`，或者设置 `MODEL_SOURCE=modelscope` 让 Reranker 从魔搭社区下载。
 
@@ -186,11 +190,19 @@ docker compose up -d api
 python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 cp .env.example .env
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload # http://localhost:8000/docs 查看 Swagger
 pytest -q                     # 测试使用哈希向量，不下载模型、不调用 LLM
+
+# 另开终端，Node.js >= 22
+npm ci
+npm run dev:gateway           # http://localhost:8787
+npm run dev:web               # http://localhost:5173
+npm run typecheck && npm test
 ```
 
 ## API
+
+下列为 FastAPI 的接口（本地 8000 端口）。网关对外提供其中的 `query/stream`、`documents` 和 `health`。
 
 ```bash
 curl -s localhost:8000/api/v1/query \
@@ -243,7 +255,7 @@ curl -s localhost:8000/api/v1/query \
 ```text
 agentic-rag-compliance-engine/
 ├── app/
-│   ├── main.py          # FastAPI：REST + SSE + 静态前端
+│   ├── main.py          # FastAPI：REST + SSE
 │   ├── agent.py         # LangGraph Self-RAG 状态机（6 个节点 + 2 组条件边）
 │   ├── retriever.py     # FAISS + BM25 + RRF + Cross-Encoder 重排
 │   ├── models.py        # Embedding / Reranker 后端（fastembed ONNX；测试用哈希向量）
@@ -251,8 +263,10 @@ agentic-rag-compliance-engine/
 │   ├── llm.py           # OpenAI 兼容 LLM 客户端
 │   ├── eval.py          # 评测：离线指标 + RAGAS
 │   ├── mcp_server.py    # MCP 工具服务
-│   ├── config.py        # Pydantic Settings
-│   └── static/          # 前端（原生 HTML/CSS/JS，无构建步骤）
+│   └── config.py        # Pydantic Settings
+├── web/                 # React + TypeScript 控制台（Vite）
+├── gateway/             # Node.js + TypeScript 网关（Fastify）
+├── shared/              # zod 接口契约与 SSE 解析器
 ├── data/
 │   ├── docs/            # 示例知识库（虚构公司的合规制度与年报摘要）
 │   └── eval/qa_zh.jsonl # 评测集（问题 / 参考答案 / 关键事实 / 是否可回答）
@@ -269,6 +283,10 @@ agentic-rag-compliance-engine/
 - **为什么离线模式用 Reranker 做相关性评估**：Cross-Encoder 的输出可以视为“问题–段落”相关概率，本身就是一个小型的判别式评审模型；用它做 `grade_documents` 不需要额外的 LLM 调用，延迟低。
 - **为什么要拒答**：在合规场景中，编造一个“看起来合理”的金额阈值比不回答更危险。评测集中专门放了知识库无法回答的问题来衡量这一点。
 - **为什么不用 PyTorch**：fastembed 基于 ONNX Runtime，CPU 推理足够快，Docker 镜像体积和冷启动时间都小得多。
+
+- **为什么加一层 Node 网关**：让 Python 服务只做检索与推理，鉴权、限流、连接管理放在擅长 I/O 的一侧；FastAPI 不再直接对外。
+- **取消的边界**：停止后网关立即断开上游，后续节点不再调度；但已经在线程中运行的那个节点会跑完，Python 无法强制中断它。
+- **限流的边界**：令牌桶在进程内存中，多副本部署需要换成 Redis 等共享存储；未启用鉴权时按连接 IP 限流，放在反向代理后面需要先配置可信代理。
 
 ## 路线图
 

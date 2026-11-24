@@ -249,3 +249,20 @@ textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .kb .kb-n { color: var(--text-2); font-size: 12px; white-space: nowrap; }
 
 .foot { text-align: center; color: var(--text-2); font-size: 12.5px; padding: 8px 16px 28px; }
+
+/* ---------- React console ---------- */
+.btn.danger { background: var(--bad-soft); color: var(--bad); border-color: transparent; min-width: 88px; }
+.btn:focus-visible, .tab:focus-visible, .chip:focus-visible, .cite:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.notice { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.notice.error { border-color: var(--bad); }
+.notice.error strong { color: var(--bad); }
+.notice p { margin: 2px 0 0; font-size: 13px; color: var(--text-2); }
+.notice .request-id { font: 11.5px var(--mono); }
+.key-form { display: flex; gap: 8px; width: 100%; }
+.key-form input { flex: 1; min-width: 0; font: inherit; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 6px 12px; }
+.streaming-label { display: flex; align-items: center; gap: 10px; color: var(--text-2); font-size: 14px; }
+.streaming-label .spinner { display: inline-block; border-color: var(--border); border-top-color: var(--accent); }
+.upload-error { color: var(--bad); }
+.upload input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.upload:focus-within { outline: 2px solid var(--accent); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } .spinner { animation-duration: 2s; } }

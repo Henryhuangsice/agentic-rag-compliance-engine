@@ -6,13 +6,28 @@ services:
         HF_ENDPOINT: ${HF_ENDPOINT:-https://huggingface.co}
         MODEL_SOURCE: ${MODEL_SOURCE:-huggingface}
     image: agentic-rag-compliance-engine:latest
-    ports:
-      - "8000:8000"
+    # Not published: only the gateway is reachable from outside.
+    expose:
+      - "8000"
     env_file:
       - path: .env
         required: false
     volumes:
       - ./data/docs:/app/data/docs   # uploaded documents persist on the host
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    ports:
+      - "8000:8787"
+    environment:
+      UPSTREAM_URL: http://api:8000
+      GATEWAY_API_KEYS: ${GATEWAY_API_KEYS:-}
+    depends_on:
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
   # Optional local LLM:  docker compose --profile ollama up -d

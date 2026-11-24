@@ -5,3 +5,5 @@ __pycache__/
 .env
 .models/
 .DS_Store
+node_modules/
+dist/
